@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Find Your Physician</title>
+  <meta charset="UTF-8">
+  <style>
+
+    * {
+      box-sizing: border-box;
+      font-family: Arial;
+    }
+
+    h3 {
+      margin:0px;
+    }
+
+    #container {
+      width: 600px;
+      float:left;
+      position: relative; left: 50%;
+      margin-left: -300px;
+      margin-top: 20px;
+    }
+
+    input[type=text] {
+      float: left;
+      width: 196px;
+      margin-right: 5px;
+      margin-top: 5px;
+      padding: 5px;
+      font-size: 10pt;
+    }
+
+    input[type=button] {
+      float: right;
+      width: 100px;
+      font-weight: bold;
+      margin-top: 5px;
+      font-size: 10pt;
+    }
+
+    #results {
+      width:100%;
+      margin-top: 5px;
+      margin-bottom: 5px;
+      float:left;
+      font-size: 10pt;
+    }
+
+    #map {
+      width: 100%;
+      height: 500px;
+    }
+
+  </style>
+</head>
+<body>
+  <div id="container">
+    <h3>Find Your Physician:</h3>
+    <input type="text" placeholder="First Name" id="fn">
+    <input type="text" placeholder="Middle Name" id="mn">
+    <input type="text" placeholder="Last Name" id="ln" style=margin-right:0px>
+    <input type="button" value="Search" onclick=findPhysician()>
+    <div id="results">
+    </div>
+    <div id="map">
+    </div>
+  </div>
+  <script>
+    (function(){
+      // Initialize Google Map and marker
+      var map;
+      var marker = null;
+      window.initMap = function() {
+        map = new google.maps.Map(document.getElementById('map'), {
+          center: {lat: 0, lng: 0},
+          zoom: 1,
+          mapTypeControl: false
+        });
+      }
+      let physicianArr = [];
+      // Initialize XMLHttpRequest to read JSON file
+      let xmlhttp = new XMLHttpRequest();
+      xmlhttp.onreadystatechange = function() {
+        if (this.readyState == 4 && this.status == 200) {
+          // Populate physicianArr with the retrieved JSON
+          physicianArr = JSON.parse(this.responseText);
+        }
+      };
+      xmlhttp.open('GET', 'physicians.json', true);
+      xmlhttp.send();
+      // Find Physician Location
+      window.findPhysician = function() {
+        document.getElementById('results').innerHTML = 'Searching...';
+        // Loop through JSON file for a name match
+        for(physician of physicianArr) {
+          if(physician['Physician_First_Name'] == document.getElementById('fn').value
+            && physician['Physician_Middle_Name'] == document.getElementById('mn').value
+            && physician['Physician_Last_Name'] == document.getElementById('ln').value) {
+              // Read address of physician
+              let address = physician['Recipient_Primary_Business_Street_Address_Line1'] + ', ' + physician['Recipient_City'] + ', ' + physician['Recipient_State'];
+              // Get exact coordinates of physician using Geocoder
+              var geocoder = new google.maps.Geocoder();
+              geocoder.geocode({
+                "address": address
+              }, function(results) {
+                // Handle coordinates result
+                let coordinates = results[0].geometry.location.toString().split(', ');
+                let lat = parseFloat(coordinates[0].replace('(',''));
+                let lng = parseFloat(coordinates[1].replace(')',''));
+                // If marker has not been set, add new marker. Else move existing marker to new position
+                if (marker == null) {
+                  marker = new google.maps.Marker({position: {lat: lat, lng: lng}, map: map});
+                } else {
+                  marker.setPosition( new google.maps.LatLng( lat, lng ) );
+                }
+                map.setZoom(10);
+                map.setCenter(marker.getPosition());
+              });
+              // Set results text
+              document.getElementById('results').innerHTML = '<b>'
+              + document.getElementById('fn').value + ' '
+              + document.getElementById('mn').value + ' '
+              + document.getElementById('ln').value + '</b><br>'
+              + address;
+              // Empty textbox values
+              document.querySelectorAll('input[type=text]').forEach(el => {
+                el.value = '';
+              })
+              return;
+          }
+        }
+        // If physician does not exist display error
+        document.getElementById('results').innerHTML = 'Physician Not Found.';
+      }
+    })();
+  </script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCOzBWyPNHuVbsZzE_gBz2bMzTUEHet_xc&callback=initMap"  async defer></script>
+</body>
+</html>
