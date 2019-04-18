@@ -78,13 +78,21 @@
           mapTypeControl: false
         });
       }
-      let physicianArr = [];
+      let physiciansObj = {};
       // Initialize XMLHttpRequest to read JSON file
       let xmlhttp = new XMLHttpRequest();
       xmlhttp.onreadystatechange = function() {
         if (this.readyState == 4 && this.status == 200) {
-          // Populate physicianArr with the retrieved JSON
-          physicianArr = JSON.parse(this.responseText);
+          // Populate physiciansObj with the names and addresses
+          for(obj of JSON.parse(this.responseText)) {
+            let fullName = obj['Physician_First_Name']
+            + obj['Physician_Middle_Name']
+            + obj['Physician_Last_Name'];
+            let objKey = fullName.replace(" ","").toLowerCase();
+            physiciansObj[objKey] = obj['Recipient_Primary_Business_Street_Address_Line1']
+            + ', ' + obj['Recipient_City']
+            + ', ' + obj['Recipient_State'];
+          }
         }
       };
       xmlhttp.open('GET', 'physicians.json', true);
@@ -92,13 +100,14 @@
       // Find Physician Location
       window.findPhysician = function() {
         document.getElementById('results').innerHTML = 'Searching...';
-        // Loop through JSON file for a name match
-        for(physician of physicianArr) {
-          if(physician['Physician_First_Name'] == document.getElementById('fn').value
-            && physician['Physician_Middle_Name'] == document.getElementById('mn').value
-            && physician['Physician_Last_Name'] == document.getElementById('ln').value) {
+        // Check if name is in physiciansObj
+        let searchName = document.getElementById('fn').value
+        + document.getElementById('mn').value
+        + document.getElementById('ln').value;
+        searchName = searchName.replace(" ","").toLowerCase();
+        if(searchName in physiciansObj) {
               // Read address of physician
-              let address = physician['Recipient_Primary_Business_Street_Address_Line1'] + ', ' + physician['Recipient_City'] + ', ' + physician['Recipient_State'];
+              let address = physiciansObj[searchName];
               // Get exact coordinates of physician using Geocoder
               var geocoder = new google.maps.Geocoder();
               geocoder.geocode({
@@ -119,16 +128,18 @@
               });
               // Set results text
               document.getElementById('results').innerHTML = '<b>'
-              + document.getElementById('fn').value + ' '
-              + document.getElementById('mn').value + ' '
-              + document.getElementById('ln').value + '</b><br>'
+              + document.getElementById('fn').value.substr(0,1).toUpperCase()
+              + document.getElementById('fn').value.substr(1) + ' '
+              + document.getElementById('mn').value.substr(0,1).toUpperCase()
+              + document.getElementById('mn').value.substr(1) + ' '
+              + document.getElementById('ln').value.substr(0,1).toUpperCase()
+              + document.getElementById('ln').value.substr(1) + '</b><br>'
               + address;
               // Empty textbox values
               document.querySelectorAll('input[type=text]').forEach(el => {
                 el.value = '';
               })
               return;
-          }
         }
         // If physician does not exist display error
         document.getElementById('results').innerHTML = '<b>Physician Not Found.</b>';
